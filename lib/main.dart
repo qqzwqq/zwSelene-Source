@@ -48,7 +48,7 @@ void main() async {
       win.minSize = minSize;
       win.size = initialSize;
       win.alignment = Alignment.center;
-      win.title = "Selene";
+      win.title = "我是挖洋镐的";
       win.show();
     });
   }
