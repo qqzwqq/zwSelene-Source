@@ -1,11 +1,11 @@
 {
-    "name": "selene",
-    "short_name": "selene",
+    "name": "我是挖洋镐的TV",
+    "short_name": "我是挖洋镐的TV",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#hexcode",
     "theme_color": "#hexcode",
-    "description": "A new Flutter project.",
+    "description": "我是挖洋镐的TV",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
