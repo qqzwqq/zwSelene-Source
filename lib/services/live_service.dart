@@ -123,7 +123,7 @@ class LiveService {
       final response = await http.get(
         Uri.parse(liveSource.url),
         headers: {'User-Agent': userAgent},
-      );
+      ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
         throw Exception('请求失败: ${response.statusCode}');
@@ -133,7 +133,7 @@ class LiveService {
       final m3uText = _decodeResponse(response.bodyBytes);
 
       // 解析 M3U 内容
-      final m3uContent = _parseM3U(sourceKey, m3uText);
+      final m3uContent = _parseM3U(sourceKey, m3uText, liveSource.url);
 
       // 缓存结果
       _channelsCache[sourceKey] = _CacheItem(m3uContent, DateTime.now());
@@ -142,6 +142,17 @@ class LiveService {
       print('获取直播频道失败: $e');
       return _channelsCache[sourceKey]?.data.channels ?? [];
     }
+  }
+
+  /// Resolve relative playlist and EPG URLs against their source URL.
+  static String? _resolvePlaylistUrl(String value, String? baseUrl) {
+    final parsed = Uri.tryParse(value);
+    if (parsed == null) return null;
+    if (parsed.hasScheme) return parsed.toString();
+    if (baseUrl == null || baseUrl.isEmpty) return null;
+    final base = Uri.tryParse(baseUrl);
+    if (base == null || !base.hasScheme || !base.hasAuthority) return null;
+    return base.resolveUri(parsed).toString();
   }
 
   /// 智能解码响应内容，支持 UTF-8、GBK、GB2312 等编码
@@ -173,7 +184,8 @@ class LiveService {
   }
 
   /// 解析 M3U 内容
-  static M3uContent _parseM3U(String sourceKey, String m3uContent) {
+  static M3uContent _parseM3U(
+      String sourceKey, String m3uContent, [String? baseUrl]) {
     final channels = <LiveChannel>[];
     final lines = m3uContent
         .split('\n')
@@ -229,7 +241,9 @@ class LiveService {
 
         // 检查下一行是否是URL
         if (i + 1 < lines.length && !lines[i + 1].startsWith('#')) {
-          final url = lines[i + 1];
+          final rawUrl = lines[i + 1];
+          final resolved = _resolvePlaylistUrl(rawUrl, baseUrl);
+          final url = resolved ?? rawUrl;
 
           // 只有当有名称和URL时才添加到结果中，并验证URL格式
           if (name.isNotEmpty && url.isNotEmpty && Uri.tryParse(url) != null) {
@@ -372,7 +386,7 @@ class LiveService {
       final request = http.Request('GET', Uri.parse(epgUrl));
       request.headers['User-Agent'] = userAgent;
 
-      final response = await request.send();
+      final response = await request.send().timeout(const Duration(seconds: 45));
       if (response.statusCode != 200) {
         return {};
       }
