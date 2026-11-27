@@ -98,19 +98,11 @@ class M3U8Service {
 
   /// 解析相对 URL 为绝对 URL
   String _resolveUrl(String url, String baseUrl) {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-    
-    final baseUri = Uri.parse(baseUrl);
-    if (url.startsWith('/')) {
-      // 绝对路径
-      return '${baseUri.scheme}://${baseUri.host}${baseUri.hasPort ? ':${baseUri.port}' : ''}$url';
-    } else {
-      // 相对路径
-      final basePath = baseUri.path.substring(0, baseUri.path.lastIndexOf('/') + 1);
-      return '${baseUri.scheme}://${baseUri.host}${baseUri.hasPort ? ':${baseUri.port}' : ''}$basePath$url';
-    }
+    final parsedUrl = Uri.tryParse(url);
+    final baseUri = Uri.tryParse(baseUrl);
+    if (parsedUrl == null || baseUri == null) return url;
+    if (parsedUrl.hasScheme) return parsedUrl.toString();
+    return baseUri.resolveUri(parsedUrl).toString();
   }
 
   /// 测量网络延迟（RTT - Round Trip Time）
@@ -131,19 +123,16 @@ class M3U8Service {
       try {
         await tempDio.head(url);
         stopwatch.stop();
-        final latency = stopwatch.elapsedMilliseconds;
-        return latency;
+        return stopwatch.elapsedMilliseconds;
       } on DioException catch (dioError) {
         // 对于 DioException，检查是否收到了服务器响应
         if (dioError.response != null) {
-          // 有响应，说明网络连接成功，只是状态码不是 2xx
           stopwatch.stop();
-          final latency = stopwatch.elapsedMilliseconds;
-          return latency;
-        } else {
-          // 没有响应，说明连接失败
-          return -1;
+          return stopwatch.elapsedMilliseconds;
         }
+        return -1;
+      } finally {
+        tempDio.close();
       }
       
     } catch (e) {
